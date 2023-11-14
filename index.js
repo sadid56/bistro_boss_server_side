@@ -11,7 +11,7 @@ app.use(cors())
 app.use(express.json())
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.dzbhwpo.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -29,6 +29,7 @@ async function run() {
     await client.connect();
     const menuCollection = client.db('BistroDB').collection('menu')
     const rivewsCollection = client.db('BistroDB').collection('rivews')
+    const cardCollection = client.db('BistroDB').collection('cards')
 
     //CRUD operation
     //menu get
@@ -39,6 +40,27 @@ async function run() {
     app.get('/rivews', async(req, res)=>{
         const result = await rivewsCollection.find().toArray()
         res.send(result)
+    })
+
+    // add card related
+    app.post('/cards', async(req, res)=>{
+      const card = req.body;
+      const result = await cardCollection.insertOne(card)
+      res.send(result)
+    })
+
+    app.get('/cards', async(req, res)=>{
+      const email = req.query.email;
+      const query = {email: email}
+      const result = await cardCollection.find(query).toArray()
+      res.send(result)
+    })
+
+    app.delete('/cards/:id', async(req, res)=>{
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await cardCollection.deleteOne(query)
+      res.send(result)
     })
 
 
