@@ -238,6 +238,81 @@ async function run() {
       res.send(result);
     });
 
+    // app.get('/payments' , async(req, res)=>{
+    //   const result = await paymentsCollection.find().toArray()
+    //   res.send(result)
+    // })
+
+    //! stats or anylitics
+    app.get("/admin-state", verifyToken, verifyAdmin, async (req, res) => {
+      const user = await UsersCollection.estimatedDocumentCount();
+      const menuItems = await menuCollection.estimatedDocumentCount();
+      const orders = await paymentsCollection.estimatedDocumentCount();
+
+      //! this not a best way to revenue
+      // const payments = await paymentsCollection.find().toArray()
+      // const revinue = payments.reduce((total, payment)=> total+ payment.price,0)
+
+      //! currect way
+      const resutl = await paymentsCollection
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              totalRevenue: {
+                $sum: "$price",
+              },
+            },
+          },
+        ])
+        .toArray();
+      const revenue = resutl.length > 0 ? resutl[0].totalRevenue : 0;
+
+      res.send({
+        user,
+        menuItems,
+        orders,
+        revenue,
+      });
+    });
+
+    app.get("/order-state", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await paymentsCollection
+        .aggregate([
+          {
+            $unwind: "$menuItemIds",
+          },
+          {
+            $lookup: {
+              from: "menu",
+              localField: "menuItemIds",
+              foreignField: "_id",
+              as: "cardIds",
+            },
+          },
+          {
+            $unwind: "$cardIds",
+          },
+          {
+            $group: {
+              _id: "$cardIds.category",
+              quantity: { $sum: 1, },
+              revenue: {$sum : '$cardIds.price'}
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              category: '$_id',
+              quantity: '$quantity',
+              revenue: '$revenue'
+            }
+          }
+        ])
+        .toArray();
+      res.send(result);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
